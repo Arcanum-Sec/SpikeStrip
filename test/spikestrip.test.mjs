@@ -44,7 +44,7 @@ test('injection is reversible byte for byte and preserves JavaScript behavior', 
   await assert.rejects(fs.stat(options.manifest), { code: 'ENOENT' });
   const result = await inject({ ...options, count: 8, write: true });
   assert.equal(new Set(result.keys).size, 8);
-  assert.ok(result.keys.every(key => /^[a-f0-9]{24}$/.test(key)));
+  assert.ok(result.keys.every(key => /^[a-f0-9]{12}$/.test(key)));
   assert.equal(result.modifiedFiles, 2);
   assert.ok(!result.manifest.startsWith(result.output + path.sep));
   const oldContext = {}, newContext = {};
@@ -81,6 +81,32 @@ test('selective removal preserves unrelated edits and remaining keys', async t =
     manifest: options.manifest, write: true });
   assert.equal(final.removed, result.count - 1);
   assert.equal(final.alreadyAbsent, 1);
+});
+
+test('removal still accepts existing 24-character keys', async t => {
+  const options = await fixture(t);
+  await inject({ ...options, count: 3, write: true });
+  const record = JSON.parse(await fs.readFile(options.manifest, 'utf8'));
+  for (const entry of record.files) {
+    const file = path.join(options.output, entry.file);
+    let source = await fs.readFile(file, 'utf8');
+    for (const insertion of entry.insertions) {
+      const oldKey = insertion.key, fullKey = oldKey + 'a1b2c3d4e5f6';
+      source = source.replaceAll(oldKey, fullKey);
+      insertion.key = fullKey;
+      insertion.payload = insertion.payload.replaceAll(oldKey, fullKey);
+      insertion.block = insertion.block.replaceAll(oldKey, fullKey);
+    }
+    await fs.writeFile(file, source);
+  }
+  await fs.writeFile(options.manifest, JSON.stringify(record));
+  const clean = path.join(options.base, 'clean');
+  const result = await remove({ root: options.output, output: clean,
+    manifest: options.manifest, write: true });
+  assert.equal(result.removed, 3);
+  for (const entry of record.files) assert.deepEqual(
+    await fs.readFile(path.join(clean, entry.file)),
+    await fs.readFile(path.join(options.root, entry.file)));
 });
 
 test('edited or duplicated decoys abort removal before writing', async t => {
