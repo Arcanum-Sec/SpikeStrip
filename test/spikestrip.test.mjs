@@ -137,6 +137,34 @@ test('path traversal, overwrites, and nested outputs are refused', async t => {
     manifest: options.manifest, write: true }), /Unsafe manifest/);
 });
 
+test('Windows containment checks reject case-only output and manifest bypasses',
+  { skip: process.platform !== 'win32' }, async t => {
+    const options = await fixture(t);
+    const upperRoot = options.root.toUpperCase();
+    await assert.rejects(inject({ ...options, output: path.join(upperRoot, 'nested') }), /non-nested/);
+    await assert.rejects(inject({ ...options, output: upperRoot }), /non-nested/);
+    await assert.rejects(inject({ ...options, manifest: path.join(upperRoot, 'private-run.json') }), /outside/);
+    await assert.rejects(fs.stat(path.join(options.root, 'nested')), { code: 'ENOENT' });
+    await assert.rejects(fs.stat(path.join(options.root, 'private-run.json')), { code: 'ENOENT' });
+  });
+
+test('source files without usable positions and unsupported syntax files are reported and copied unchanged', async t => {
+  const options = await fixture(t);
+  const extraFiles = {
+    'fragment.html': '<article><h1>Fragment without explicit head or body.</h1></article>',
+    'empty.js': '// This source has no statements.\n',
+    'component.jsx': 'export const view = <main>Example</main>;',
+    'config.ts': 'export const retries: number = 3;',
+    'component.tsx': 'export const view = <main>Example</main>;',
+  };
+  for (const [file, source] of Object.entries(extraFiles))
+    await fs.writeFile(path.join(options.root, file), source);
+  const result = await inject({ ...options, count: 4, write: true });
+  assert.deepEqual(result.skipped.map(item => item.file).sort(), Object.keys(extraFiles).sort());
+  for (const [file, source] of Object.entries(extraFiles))
+    assert.equal(await fs.readFile(path.join(options.output, file), 'utf8'), source);
+});
+
 test('modern scripts, modules, CommonJS, shebangs and regexes survive', async t => {
   const options = await fixture(t);
   const scripts = {
