@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import { payloads } from './payloads.mjs';
+import { artexPayloads } from './profiles.mjs';
 
 const endpoints = {
   openai: 'https://api.openai.com/v1/responses',
@@ -24,6 +25,7 @@ export function validateDynamic({ provider, model, count, maxOutputTokens = 8192
 }
 
 export async function generatePayloads({ provider, model, count, promptFile,
+  referencePayloads = payloads,
   maxOutputTokens = 8192, fetchImpl = globalThis.fetch, env = process.env }) {
   validateDynamic({ provider, model, count, maxOutputTokens });
   const variable = provider === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
@@ -31,13 +33,13 @@ export async function generatePayloads({ provider, model, count, promptFile,
   if (!apiKey?.trim()) throw new Error(`Set ${variable} in your environment`);
   const template = await fs.readFile(promptFile ?? new URL('../prompts/generate.txt', import.meta.url), 'utf8');
   if (template.length > 32000) throw new Error('Prompt file exceeds 32,000 characters');
-  const seen = new Set(payloads.map(normalize)), generated = [];
+  const seen = new Set([...payloads, ...artexPayloads].map(normalize)), generated = [];
   const usage = [];
   // At most ceil(count / 25) calls; no retries or automatic repair calls.
   while (generated.length < count) {
     const batchSize = Math.min(25, count - generated.length);
     const prompt = template.replaceAll('{{count}}', String(batchSize)) +
-      '\n\nReference items to avoid copying:\n' + JSON.stringify(payloads) +
+      '\n\nReference items to avoid copying:\n' + JSON.stringify(referencePayloads) +
       '\n\nPreviously generated items to avoid copying:\n' + JSON.stringify(generated);
     const schema = { type: 'object', additionalProperties: false,
       required: ['payloads'], properties: { payloads: { type: 'array',

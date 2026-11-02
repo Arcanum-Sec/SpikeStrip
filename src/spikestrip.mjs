@@ -4,7 +4,7 @@ import { createHash, randomBytes, randomInt } from 'node:crypto';
 import { TextDecoder } from 'node:util';
 import { parse as parseJS } from 'acorn';
 import { parse as parseHTML } from 'parse5';
-import { payloads, renderPayload } from './payloads.mjs';
+import { profileFor } from './profiles.mjs';
 import { generatePayloads, validateDynamic, validatePayload } from './generate.mjs';
 
 const excluded = new Set(['.git', '.hg', '.svn', 'node_modules', '.venv', 'venv',
@@ -157,8 +157,10 @@ async function copyWithChanges(root, output, files, changed) {
 }
 
 export async function inject({ root, output, manifest, count = 20, write = false,
+  mode = 'generic',
   dynamic = false, provider, model, promptFile, maxOutputTokens = 8192,
   fetchImpl, env }) {
+  const profile = profileFor(mode);
   ({ root, output } = await pathsFor(root, output));
   if (!Number.isSafeInteger(count) || count < 1 || count > 10000)
     throw new Error('Count must be an integer between 1 and 10000');
@@ -192,10 +194,11 @@ export async function inject({ root, output, manifest, count = 20, write = false
   let generation;
   if (dynamic) {
     validateDynamic({ provider, model, count, maxOutputTokens });
-    if (!write) return { mode: 'dry-run', output, manifest, count,
+    if (!write) return { mode: 'dry-run', profile: mode, output, manifest, count,
       generationPlanned: { provider, model, count, requests: Math.ceil(count / 25) },
       copiedFiles: files.length, skipped, note: 'No provider requests made; use --write to generate and insert.' };
-    generation = await generatePayloads({ provider, model, count, promptFile,
+    generation = await generatePayloads({ provider, model, count, promptFile: promptFile ?? profile.promptFile,
+      referencePayloads: profile.payloads,
       maxOutputTokens, fetchImpl, env });
   }
   // Sampling without replacement. Both placement and IDs use OS randomness.
@@ -208,9 +211,9 @@ export async function inject({ root, output, manifest, count = 20, write = false
     let key;
     do { key = randomBytes(6).toString('hex'); } while (keys.has(key));
     keys.add(key);
-    const payloadIndex = generation ? null : randomInt(payloads.length);
+    const payloadIndex = generation ? null : randomInt(profile.payloads.length);
     const payload = generation ? generation.payloads[index].replaceAll('{{KEY}}', key)
-      : renderPayload(payloadIndex, key);
+      : profile.render(payloadIndex, key);
     validatePayload(payload);
     const entry = { key, offset: slot.offset, payloadIndex, payload,
       block: comment(candidates.get(slot.file).kind, key, payload) };
@@ -231,7 +234,7 @@ export async function inject({ root, output, manifest, count = 20, write = false
       injectedSha256: sha256(bytes), insertions });
   }
   const record = { version: 1, run, createdAt: new Date().toISOString(),
-    root, output, files: entries, skipped,
+    root, output, profile: mode, files: entries, skipped,
     generation: generation ? { provider, model, usage: generation.usage } : undefined };
   if (write) {
     await fs.mkdir(path.dirname(manifest), { recursive: true });
@@ -240,9 +243,42 @@ export async function inject({ root, output, manifest, count = 20, write = false
     await fs.writeFile(manifest, JSON.stringify(record, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
     await copyWithChanges(root, output, files, changed);
   }
-  return { mode: write ? 'write' : 'dry-run', output, manifest, count,
+  return { mode: write ? 'write' : 'dry-run', profile: mode, output, manifest, count,
     modifiedFiles: entries.length, copiedFiles: files.length, skipped,
     keys: [...keys] };
+}
+
+export async function raw({ output, count = 20, format = 'js', mode = 'generic',
+  write = false, dynamic = false, provider, model, promptFile, maxOutputTokens = 8192,
+  fetchImpl, env }) {
+  const profile = profileFor(mode);
+  if (!['js', 'html'].includes(format)) throw new Error('--format must be js or html');
+  if (!Number.isSafeInteger(count) || count < 1 || count > 10000)
+    throw new Error('Count must be an integer between 1 and 10000');
+  output = path.resolve(output);
+  await noSymlinks(output);
+  if (await exists(output)) throw new Error('Output already exists; choose a new text file');
+  if (dynamic) validateDynamic({ provider, model, count, maxOutputTokens });
+  if (!write) return { mode: 'dry-run', raw: true, profile: mode, output, count, format,
+    generationPlanned: dynamic ? { provider, model, count, requests: Math.ceil(count / 25) } : undefined,
+    note: 'No files read or written and no provider requests made; use --write to export comments.' };
+  const generation = dynamic ? await generatePayloads({ provider, model, count,
+    promptFile: promptFile ?? profile.promptFile, referencePayloads: profile.payloads,
+    maxOutputTokens, fetchImpl, env }) : undefined;
+  const keys = new Set(), blocks = [];
+  for (let i = 0; i < count; i++) {
+    let key;
+    do { key = randomBytes(6).toString('hex'); } while (keys.has(key));
+    keys.add(key);
+    const payload = generation ? generation.payloads[i].replaceAll('{{KEY}}', key)
+      : profile.render(randomInt(profile.payloads.length), key);
+    validatePayload(payload);
+    blocks.push(comment(format, key, payload));
+  }
+  await fs.mkdir(path.dirname(output), { recursive: true });
+  await fs.writeFile(output, blocks.join('\n') + '\n', { flag: 'wx', mode: 0o600 });
+  return { mode: 'write', raw: true, profile: mode, output, count, format, keys: [...keys],
+    generation: generation ? { provider, model, usage: generation.usage } : undefined };
 }
 
 function safeRelative(relative) {
