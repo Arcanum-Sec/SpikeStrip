@@ -42,6 +42,44 @@ The tool supports `.html`, `.htm`, `.js`, `.mjs`, and `.cjs` files. It uses Acor
 
 The tool does not insert into attribute strings, raw text, templates, inline script bodies, or text content. It skips and reports fragments without explicit `head`/`body`, invalid JavaScript, unsupported JSX/TypeScript files, and source files over 2 MB. It also reports supported source files that have no safe insertion positions. These source files are copied unchanged.
 
+## Export comments for manual placement
+
+Use `--raw` if you want a text file of comments to sprinkle into your web source yourself. This option needs no site directory and does not insert anything into your files or copy a build tree. It provides an alternative when you do not want an insertion tool in your build pipeline.
+
+```sh
+# Preview an export without creating a file.
+node bin/spikestrip.mjs inject --raw --output ./comments.txt --count 30
+
+# Export JavaScript/CSS block comments, with one comment per line.
+node bin/spikestrip.mjs inject --raw --output ./comments.txt --format js --count 30 --write
+
+# Export HTML/SVG comments instead.
+node bin/spikestrip.mjs inject --raw --output ./html-comments.txt --format html --count 30 --write
+```
+
+Each exported comment has its own random 12-character key. The default format is `js`; `--format html` changes the wrapper. Choose one format per export, and place comments only where that file type permits comments. Existing output files are never overwritten. Raw exports accept counts from 1 to 10,000 for built-ins and from 1 to 1,000 with `--dynamic`.
+
+Raw exports create no removal manifest because SpikeStrip does not know where you paste the comments. Keep the text file as your key inventory, and search for those keys to remove the comments manually. The `remove` command handles automatic insertions recorded in a manifest; it cannot discover manual placements from a raw text file. Do not pass a source directory or `--manifest` with `--raw`.
+
+The same generation flags work with raw exports. For example, after setting `OPENAI_API_KEY`, run `node bin/spikestrip.mjs inject --raw --output ./unique-comments.txt --format js --dynamic --provider openai --model YOUR_MODEL_ID --count 40 --write`. A preview still makes no API request.
+
+## Use the ARTEX profile
+
+Add `--mode artex` to select 16 decoys designed around the public ARTEX forks studied in [the research notes](docs/ARTEX.md). The profile includes quoted API paths, fabricated archive chunks, route-map entries, worker-to-planner handoffs, traffic-review detours, and keyed summary references. The default `--mode generic` keeps the original mixed pool.
+
+```sh
+# Inject the ARTEX profile into a separate site copy.
+node bin/spikestrip.mjs inject ./site --output ./site-artex --mode artex --count 20 --manifest ./private/artex.json --write
+
+# Export the ARTEX profile for manual placement.
+node bin/spikestrip.mjs inject --raw --output ./artex-comments.txt --mode artex --format js --count 30 --write
+
+# Generate new profile-specific comments with your provider key.
+node bin/spikestrip.mjs inject --raw --output ./artex-unique.txt --mode artex --dynamic --provider anthropic --model YOUR_MODEL_ID --count 40 --write
+```
+
+The ARTEX profile selects its own pool and uses `prompts/artex.txt` for dynamic generation. `--prompt-file` can override that prompt. Automatic manifests record the selected profile, and removal uses the stored comments without requiring the same profile or an API key. Path-bearing decoys include the comment key to distinguish them from other generated candidates. They create no endpoints, chunk files, or backend behavior.
+
 ## Dynamic generation with your own provider key
 
 `--dynamic` generates one new decoy per insertion. `--count 40` requests 40 distinct texts and creates 40 separately keyed insertions. The tool rejects exact normalized duplicates of built-ins or earlier results in the run. It cannot guarantee global or semantic uniqueness.
@@ -58,11 +96,11 @@ node bin/spikestrip.mjs inject ./site --output ./site-unique --manifest ./privat
 
 The supplied generation prompt is in `prompts/generate.txt`. It asks for a mix of workflow instructions, fabricated routes and vulnerability hints, known-CVE legacy paths, and mathematical tasks. It limits math to one quarter of batches containing four or more items; this is a prompt instruction, not a quota enforced by the script. To customize the prompt, pass `--prompt-file ./my-prompt.txt`. `{{count}}` is replaced with each batch's requested size; a generated `{{KEY}}` reference is replaced locally with that insertion's key. The script validates comment safety and rejects malformed output.
 
-Generation starts only with `--write`, after the tool checks for enough insertion positions. A dynamic preview makes no API request and needs no API key. Dynamic counts range from 1 to 1,000. Each request generates up to 25 texts; the run makes at most `ceil(count / 25)` requests and does not retry automatically.
+Generation starts only with `--write`, after the tool checks for enough insertion positions or validates the raw export destination. A dynamic preview makes no API request and needs no API key. Dynamic counts range from 1 to 1,000. Each request generates up to 25 texts; the run makes at most `ceil(count / 25)` requests and does not retry automatically.
 
 `--max-output-tokens` caps each response. The default cap is 8,192 tokens, and the allowed range is 1,024–32,768 tokens. A provider may reject the token cap or an unsupported model. Failures, refusals, truncation, invalid JSON, and duplicates stop the run before it writes a site. Completed API requests may still be billed.
 
-The chosen provider receives the generation prompt, built-in reference texts, and earlier generated texts. The tool does not send site source or insertion keys. New text stays in the private run manifest and the generated site copy; it is not written into this repository. The manifest also records the provider, model, and numeric token usage. Removal works offline without a provider key.
+The chosen provider receives the generation prompt, built-in reference texts, and earlier generated texts. The tool does not send site source or insertion keys. New text stays in the private run manifest and the generated site copy, or in the raw export text file; it is not written into this repository. Automatic manifests also record the provider, model, and numeric token usage. Removal works offline without a provider key.
 
 ## Remove all or selected comments
 
@@ -76,7 +114,15 @@ node bin/spikestrip.mjs remove ./site-planted --output ./site-partial --manifest
 
 Removal matches the exact stored comment and preserves unrelated edits. Modified or duplicated comment blocks stop the run before it writes output. The tool counts blocks that are already absent, so you can remove selected keys now and the rest later. Keep the manifest until all insertions are gone. It includes original and injected SHA-256 hashes for auditing. Existing 24-character keys remain removable.
 
-Minifiers and CDNs can strip comments. Preserve the comments if you rebuild or minify after insertion. Insertion invalidates existing content hashes, SRI attributes, asset signatures, and source-map column offsets; regenerate affected deployment artifacts.
+## Minified files, source maps, and hashes
+
+Minified JavaScript can contain ordinary comments as well as metadata such as `//# sourceMappingURL=app.js.map`. That annotation tells debugging tools where to find a source map. It does not recalculate a content hash or make later edits safe for integrity checks.
+
+Any added comment changes the file's bytes. Recalculate affected content hashes, Subresource Integrity values, asset signatures, and cache or service-worker manifests after the final edit. An outdated SRI value can prevent the browser from loading the script. SpikeStrip copies assets but does not rename hashed bundles, rewrite their references, regenerate source maps, or update integrity metadata for you.
+
+Placement also matters for source maps. The automatic inserter adds comments at statement boundaries within the code, which can shift mapped columns. A separate comment appended after all executable code generally preserves the positions of existing mapped code. Put it on its own line so a preceding `//` comment cannot swallow it, and retain the existing `sourceMappingURL` annotation as the final metadata line. This placement still changes the hash. Raw export lets you choose placement, but it does not append anything automatically.
+
+Minifiers and CDNs can strip comments. Place them after the last comment-stripping transformation, or configure preservation. Complete hashing, signing, integrity generation, and deployment metadata updates after the comments reach their final form.
 
 HTML comments change the DOM comment-node list. Reflective JavaScript such as `Function.prototype.toString()` can reveal inserted comments, so syntax-tree equivalence does not guarantee identical behavior for code that inspects its own source. Keys are public identifiers. They contain no secrets and make no remote tracking requests; search assessment logs or reports to detect them.
 
@@ -88,7 +134,7 @@ pnpm test
 pnpm check
 ```
 
-Tests check byte-for-byte round trips, selected-key removal, unrelated edits, and removal of existing 24-character keys. They also check edited/duplicate-block refusal, path traversal, nested-output and overwrite refusal, UTF-8 BOMs, CRLF, regexes, templates, directives, modules, CommonJS, shebangs, and ASI. Provider tests cover request construction, no-cost previews, duplicate rejection, and incomplete responses. These tests use mocks and spend no API credits. `legacy/sprinkle_canaries.py` retains the original Python-only implementation.
+Tests check byte-for-byte round trips, selected-key removal, unrelated edits, and removal of existing 24-character keys. They also check edited/duplicate-block refusal, path traversal, nested-output and overwrite refusal, UTF-8 BOMs, CRLF, regexes, templates, directives, modules, CommonJS, shebangs, and ASI. Raw-export tests check counts, wrappers, key uniqueness, argument validation, and ARTEX profile selection. Provider tests cover request construction, no-cost previews, duplicate rejection, and incomplete responses. These tests use mocks and spend no API credits. `legacy/sprinkle_canaries.py` retains the original Python-only implementation.
 
 ## Prompt examples in web file types
 
