@@ -2,6 +2,7 @@
   "name": "spikestrip",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "Reversible HTML and JavaScript prompt decoys with opaque per-insertion keys.",
   "type": "module",
   "bin": { "spikestrip": "bin/spikestrip.mjs" },

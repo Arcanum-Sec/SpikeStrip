@@ -13,6 +13,10 @@ The private manifest records each comment and its key. Use it to remove selected
 
 The false leads name invented routes and parameters for SSRF, SQL injection, server-side template injection, DOM-based XSS, XXE, path traversal, and object authorization checks. Some comments claim that a retired path uses a product affected by Log4Shell (`CVE-2021-44228`), Spring Cloud Gateway `CVE-2022-22947`, or Apache HTTP Server `CVE-2021-41773`. The CVE identifiers are real; the paths and claimed deployments are fabricated. These comments create no routes, vulnerable handlers, or network requests. Review the proposed names against your application before deploying them, since an invented path could overlap a real route.
 
+## License
+
+SpikeStrip is available under the [MIT License](LICENSE), with copyright held by Arcanum. You may use, modify, distribute, and sell copies, including in commercial products, provided that you retain the copyright and permission notices in copies or substantial portions of the software. The license does not require public promotional credit for every commercial use.
+
 ## Install
 
 SpikeStrip requires Node.js 20 or newer. Run these commands from this repository.
