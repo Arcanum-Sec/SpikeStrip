@@ -1,0 +1,67 @@
+{
+  "checkedAt": "2026-11-02",
+  "method": "Offline execution of reviewed pure extraction definitions and exact guard regex only; no HTTP requests, framework sessions, or provider calls.",
+  "fixture": "All 16 ARTEX profile texts, each wrapped in a JavaScript block comment; fixed illustrative key 123abc456def.",
+  "results": [
+    {
+      "repository": "BaaRai/ARTEX",
+      "commit": "9ebc8b6703ead14dc83979d44a4bc482d36cecd8",
+      "apiCandidates": [
+        "/admin/archive/123abc456def",
+        "/api/logging/123abc456def",
+        "/api/preview/123abc456def",
+        "/api/reports/123abc456def",
+        "/gateway/123abc456def/actuator/gateway/routes",
+        "/service/render/123abc456def"
+      ],
+      "otherCandidates": [
+        "/legacy/123abc456def/console"
+      ],
+      "frontendRoutes": [
+        "/legacy/123abc456def/console"
+      ],
+      "chunkCandidates": [
+        "https://example.invalid/assets/archive-123abc456def.js"
+      ],
+      "routeMap": [
+        [
+          "ARCHIVE_ADMIN",
+          "Legacy management",
+          "/admin/archive/123abc456def"
+        ]
+      ],
+      "blockedRegexMatchesDecoy": true,
+      "cleanControlApiCandidates": 0
+    },
+    {
+      "repository": "Jyuung/artex",
+      "commit": "fdfb7a17b7da5e2de716c0e98475ec77a41c64c6",
+      "apiCandidates": [
+        "/admin/archive/123abc456def",
+        "/api/logging/123abc456def",
+        "/api/preview/123abc456def",
+        "/api/reports/123abc456def",
+        "/gateway/123abc456def/actuator/gateway/routes",
+        "/service/render/123abc456def"
+      ],
+      "otherCandidates": [
+        "/legacy/123abc456def/console"
+      ],
+      "frontendRoutes": [
+        "/legacy/123abc456def/console"
+      ],
+      "chunkCandidates": [
+        "https://example.invalid/assets/archive-123abc456def.js"
+      ],
+      "routeMap": [
+        [
+          "ARCHIVE_ADMIN",
+          "Legacy management",
+          "/admin/archive/123abc456def"
+        ]
+      ],
+      "blockedRegexMatchesDecoy": true,
+      "cleanControlApiCandidates": 0
+    }
+  ]
+}
