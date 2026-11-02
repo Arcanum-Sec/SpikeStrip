@@ -1,6 +1,6 @@
 # SpikeStrip
 
-Reversible prompt decoys for HTML source and JavaScript files. SpikeStrip plants comments that may distract automated AI assessment agents that mistakenly follow instructions found in source code. It does not reliably stop agents that isolate untrusted content, and it provides no protection against conventional scanners.
+SpikeStrip adds reversible prompt decoys to HTML source and JavaScript files. These comments may distract automated AI assessment agents that mistakenly follow instructions found in source code. The tool does not reliably stop agents that isolate untrusted content, and it provides no protection against conventional scanners.
 
 Each insertion gets a random 12-character hex key, such as `a7c94e2b610f`. Keys are checked for duplicates within each run. Deployed comments have no SpikeStrip branding or fixed canary prefix. HTML comments appear in View Source; JavaScript comments are visible when someone fetches the script. The comments add no callbacks, executable loops, or runtime computation. Three built-in reference/pause decoys use neutral review wording.
 
@@ -8,7 +8,7 @@ The private manifest records each comment and its key. Use it to remove selected
 
 ## Install
 
-Requires Node.js 20 or newer. Run from this repository:
+SpikeStrip requires Node.js 20 or newer. Run these commands from this repository.
 
 ```sh
 npm install --ignore-scripts
@@ -22,7 +22,7 @@ Alternatively, use `pnpm install --frozen-lockfile --ignore-scripts` with the ch
 Run the tool against the built static web root, after minification and before deployment. Source and output must be separate directories, with neither inside the other. The output copy includes ordinary assets and modified files. The tool leaves originals untouched and excludes symlinks, VCS metadata, dependency directories, private manifest folders, and environment files.
 
 ```sh
-# Preview: validates inputs and writes nothing.
+# This preview validates inputs and writes nothing.
 node bin/spikestrip.mjs inject ./site --output ./site-planted --count 20 --manifest ./private/run.json
 
 # Apply the plan to a new copy.
@@ -31,7 +31,7 @@ node bin/spikestrip.mjs inject ./site --output ./site-planted --count 20 --manif
 
 `--count` is the total number of insertions across the tree. Placement, payload selection, and keys use OS randomness. Previews and subsequent writes may choose different positions and keys. Every insertion receives its own key even when built-in text repeats. If no manifest path is supplied, one is created in `.spikestrip/` beside the output directory. Keep that folder private and outside the deployed site.
 
-Supported extensions: `.html`, `.htm`, `.js`, `.mjs`, `.cjs`. The tool uses Acorn statement boundaries to place JavaScript comments, then checks that the syntax tree is equivalent. HTML comments go before direct children of explicit `head` or `body` elements. A document-tree check rejects changes beyond comments.
+The tool supports `.html`, `.htm`, `.js`, `.mjs`, and `.cjs` files. It uses Acorn statement boundaries to place JavaScript comments, then checks that the syntax tree is equivalent. HTML comments go before direct children of explicit `head` or `body` elements. A document-tree check rejects changes beyond comments.
 
 The tool does not insert into attribute strings, raw text, templates, inline script bodies, or text content. It skips and reports fragments without explicit `head`/`body`, invalid JavaScript, unsupported syntax such as JSX/TypeScript, and source files over 2 MB.
 
@@ -53,7 +53,7 @@ The supplied generation prompt is in `prompts/generate.txt`. To customize it, pa
 
 Generation starts only with `--write`, after the tool checks for enough insertion positions. A dynamic preview makes no API request and needs no API key. Dynamic counts range from 1 to 1,000. Each request generates up to 25 texts; the run makes at most `ceil(count / 25)` requests and does not retry automatically.
 
-`--max-output-tokens` caps each response (default 8,192; range 1,024–32,768). A provider may reject the token cap or an unsupported model. Failures, refusals, truncation, invalid JSON, and duplicates stop the run before it writes a site. Completed API requests may still be billed.
+`--max-output-tokens` caps each response. The default cap is 8,192 tokens, and the allowed range is 1,024–32,768 tokens. A provider may reject the token cap or an unsupported model. Failures, refusals, truncation, invalid JSON, and duplicates stop the run before it writes a site. Completed API requests may still be billed.
 
 The chosen provider receives the generation prompt, built-in reference texts, and earlier generated texts. The tool does not send site source or insertion keys. New text stays in the private run manifest and the generated site copy; it is not written into this repository. The manifest also records the provider, model, and numeric token usage. Removal works offline without a provider key.
 
