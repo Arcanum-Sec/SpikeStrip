@@ -1,0 +1,7 @@
+node_modules/
+.spikestrip/
+coverage/
+*.log
+__pycache__/
+.env
+.env.*

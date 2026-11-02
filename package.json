@@ -1,0 +1,11 @@
+{
+  "name": "spikestrip",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reversible HTML and JavaScript prompt decoys with opaque per-insertion keys.",
+  "type": "module",
+  "bin": { "spikestrip": "bin/spikestrip.mjs" },
+  "scripts": { "test": "node --test", "check": "node --check bin/spikestrip.mjs && node --check src/spikestrip.mjs" },
+  "engines": { "node": ">=20" },
+  "dependencies": { "acorn": "^8.15.0", "parse5": "^7.3.0" }
+}
