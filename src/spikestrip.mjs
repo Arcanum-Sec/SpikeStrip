@@ -10,8 +10,16 @@ import { generatePayloads, validateDynamic, validatePayload } from './generate.m
 const excluded = new Set(['.git', '.hg', '.svn', 'node_modules', '.venv', 'venv',
   '__pycache__', '.spikestrip', 'coverage']);
 const extensions = new Set(['.html', '.htm', '.js', '.mjs', '.cjs']);
+const unsupportedSourceExtensions = new Set(['.jsx', '.ts', '.tsx']);
 const sha256 = value => createHash('sha256').update(value).digest('hex');
-const inside = (parent, child) => child === parent || child.startsWith(parent + path.sep);
+const inside = (parent, child) => {
+  // Windows resolves ordinary paths without regard to letter case.
+  if (process.platform === 'win32') {
+    parent = parent.toLowerCase();
+    child = child.toLowerCase();
+  }
+  return child === parent || child.startsWith(parent + path.sep);
+};
 const decode = bytes => new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
 
 async function exists(file) {
@@ -163,7 +171,11 @@ export async function inject({ root, output, manifest, count = 20, write = false
   const candidates = new Map(), slots = [];
   for (const relative of files) {
     const extension = path.extname(relative).toLowerCase();
-    if (!extensions.has(extension)) continue;
+    if (!extensions.has(extension)) {
+      if (unsupportedSourceExtensions.has(extension)) skipped.push({ file: relative,
+        reason: 'Unsupported source extension; compile to plain JavaScript before insertion' });
+      continue;
+    }
     try {
       const absolute = path.join(root, relative);
       if ((await fs.stat(absolute)).size > 2_000_000) throw new Error('Source exceeds 2 MB');
@@ -171,6 +183,7 @@ export async function inject({ root, output, manifest, count = 20, write = false
       if (/<!-- (?:[a-f0-9]{12}|[a-f0-9]{24}) |\/\* (?:[a-f0-9]{12}|[a-f0-9]{24}) /.test(source))
         throw new Error('Existing keyed comments; remove them before reinjecting');
       const inspection = extension.startsWith('.ht') ? inspectHTML(source) : inspectJS(source, extension);
+      if (!inspection.offsets.length) throw new Error('No safe insertion positions; source will be copied unchanged');
       candidates.set(relative, { raw, source, ...inspection });
       slots.push(...inspection.offsets.map(offset => ({ file: relative, offset })));
     } catch (error) { skipped.push({ file: relative, reason: error.message }); }
