@@ -168,7 +168,7 @@ export async function inject({ root, output, manifest, count = 20, write = false
       const absolute = path.join(root, relative);
       if ((await fs.stat(absolute)).size > 2_000_000) throw new Error('Source exceeds 2 MB');
       const raw = await fs.readFile(absolute), source = decode(raw);
-      if (/<!-- [a-f0-9]{24} |\/\* [a-f0-9]{24} /.test(source))
+      if (/<!-- (?:[a-f0-9]{12}|[a-f0-9]{24}) |\/\* (?:[a-f0-9]{12}|[a-f0-9]{24}) /.test(source))
         throw new Error('Existing keyed comments; remove them before reinjecting');
       const inspection = extension.startsWith('.ht') ? inspectHTML(source) : inspectJS(source, extension);
       candidates.set(relative, { raw, source, ...inspection });
@@ -193,7 +193,7 @@ export async function inject({ root, output, manifest, count = 20, write = false
   const byFile = new Map(), keys = new Set();
   for (const [index, slot] of slots.slice(0, count).entries()) {
     let key;
-    do { key = randomBytes(12).toString('hex'); } while (keys.has(key));
+    do { key = randomBytes(6).toString('hex'); } while (keys.has(key));
     keys.add(key);
     const payloadIndex = generation ? null : randomInt(payloads.length);
     const payload = generation ? generation.payloads[index].replaceAll('{{KEY}}', key)
@@ -251,7 +251,7 @@ export async function remove({ root, output, manifest, keys = [], write = false 
     if (knownFiles.has(entry.file) || !Array.isArray(entry.insertions)) throw new Error('Invalid manifest entries');
     knownFiles.add(entry.file);
     for (const insertion of entry.insertions) {
-      if (!/^[a-f0-9]{24}$/.test(insertion.key) || knownKeys.has(insertion.key)) throw new Error('Invalid or duplicate key');
+      if (!/^(?:[a-f0-9]{12}|[a-f0-9]{24})$/.test(insertion.key) || knownKeys.has(insertion.key)) throw new Error('Invalid or duplicate key');
       knownKeys.add(insertion.key);
       const kind = path.extname(entry.file).toLowerCase().startsWith('.ht') ? 'html' : 'js';
       validatePayload(insertion.payload);
