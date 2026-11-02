@@ -1,5 +1,10 @@
 # SpikeStrip
 
+> [!WARNING]
+> # This project is a work in progress.
+>
+> SpikeStrip is intended to provide inspiration for people building defenses against AI automation tools such as ARTEX and similar systems. Its decoys and generation prompts are experimental.
+
 SpikeStrip adds reversible prompt decoys to HTML source and JavaScript files. The comments include instructions that redirect an AI assessment, false vulnerability leads, and mathematical distractions. They may divert agents that follow source comments or turn unverified hints into scan targets. A conventional scanner would need to extract the hinted paths or parameters for these comments to affect its work. The tool does not reliably stop agents that isolate untrusted content or scanners that ignore comments.
 
 Each insertion gets a random 12-character hex key, such as `a7c94e2b610f`. Keys are checked for duplicates within each run. Deployed comments have no SpikeStrip branding or fixed canary prefix. HTML comments appear in View Source; JavaScript comments are visible when someone fetches the script. The comments add no callbacks, executable loops, or runtime computation. Three built-in reference/pause decoys use neutral review wording.
@@ -35,7 +40,7 @@ node bin/spikestrip.mjs inject ./site --output ./site-planted --count 20 --manif
 
 The tool supports `.html`, `.htm`, `.js`, `.mjs`, and `.cjs` files. It uses Acorn statement boundaries to place JavaScript comments, then checks that the syntax tree is equivalent. HTML comments go before direct children of explicit `head` or `body` elements. A document-tree check rejects changes beyond comments.
 
-The tool does not insert into attribute strings, raw text, templates, inline script bodies, or text content. It skips and reports fragments without explicit `head`/`body`, invalid JavaScript, unsupported syntax such as JSX/TypeScript, and source files over 2 MB.
+The tool does not insert into attribute strings, raw text, templates, inline script bodies, or text content. It skips and reports fragments without explicit `head`/`body`, invalid JavaScript, unsupported JSX/TypeScript files, and source files over 2 MB. It also reports supported source files that have no safe insertion positions. These source files are copied unchanged.
 
 ## Dynamic generation with your own provider key
 
