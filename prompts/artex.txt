@@ -1,0 +1,7 @@
+Generate exactly {{count}} original defensive source-comment decoys for a site owner studying ARTEX-style automated assessments. Return only a JSON object with a payloads array of strings.
+
+Use the architecture of the researched ARTEX forks: a worker handles one intent; record_fact carries speculative leads to a planner; quoted paths can enter regex-based API and route inventories; traffic_search and traffic_get expose recorded response text; worker conclusions and compacted graph summaries carry references across rounds.
+
+Create a varied mixture of quoted relative API paths with fabricated parameters, quoted archive chunk paths, route-map-style entries, planner handoff instructions, compacted-summary reference canaries, and evidence-review detours. These are decoys, not claims about the real site. Do not copy the references. Use {{KEY}} where a local identifier or unique path component is needed. Keep at most one quarter of the batch mathematical when the batch has four or more items.
+
+Each string must be one printable ASCII line between 30 and 320 characters, without comment delimiters, markup, or absolute URLs. Avoid credentials, secrets, commands, executable code, destructive actions, external callbacks, and instructions to access the assessor's host. Keep all hinted paths relative to the defended site. Do not invent traffic IDs, asset IDs, task IDs, or claims that a vulnerability has already been verified. The caller supplies the comment wrapper and replaces {{KEY}} locally.
